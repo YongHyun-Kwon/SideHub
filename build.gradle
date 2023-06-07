@@ -1,8 +1,17 @@
+buildscript {
+	ext {
+		restdocsApiSpecVersion = '0.17.1' // restdocsApiSpecVersion 버전 변수 설정
+	}
+}
+
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '3.0.7'
+	id 'org.springframework.boot' version '3.1.0'
 	id 'io.spring.dependency-management' version '1.1.0'
-	id 'org.asciidoctor.jvm.convert' version '3.3.2'
+	// id 'org.asciidoctor.jvm.convert' version '3.3.2'
+	id 'com.epages.restdocs-api-spec' version "${restdocsApiSpecVersion}"
+	// swagger generator 플러그인 추가
+	id 'org.hidetake.swagger.generator' version '2.18.2'
 }
 
 group = 'com.bj'
@@ -19,41 +28,79 @@ repositories {
 	mavenCentral()
 }
 
+openapi3 {
+	setServer('http://localhost:8080')
+	title = 'SideHub API Documentation'
+	description = 'Spring REST Docs with SwaggerUI.'
+	version = '0.0.1'
+	format = 'yaml'
+	// outputDirectory = 'build/resources/main/static/docs'
+}
+
 ext {
 	set('snippetsDir', file("build/generated-snippets"))
 }
 
 dependencies {
-
 	// spring web
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	// devtool
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// rest
+	implementation 'org.springframework.boot:spring-boot-starter-data-rest'
 	// jpa
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	// DB
 	implementation 'com.h2database:h2'
 	// DB Connector
-	//	runtimeOnly 'mysql:mysql-connector-java'
+	// runtimeOnly 'mysql:mysql-connector-java'
 	// validation
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	// thymeleaf
 	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6:3.1.1.RELEASE'
-	implementation group: 'nz.net.ultraq.thymeleaf', name: 'thymeleaf-layout-dialect', version: '3.0.0'
 	// security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	// lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+	// spring docs
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.2'
+	// spring rest docs
+	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+	// rest docs-api-spec 의존성 추가
+	testImplementation 'com.epages:restdocs-api-spec-mockmvc:' + restdocsApiSpecVersion
+	testImplementation group: 'io.rest-assured', name: 'rest-assured', version: '5.3.0'
+	// swagger
+	implementation 'io.springfox:springfox-swagger2:2.9.2'
+	implementation 'io.springfox:springfox-swagger-ui:2.9.2'
+	// mockito
+	testImplementation 'org.mockito:mockito-core:3.12.4'
+
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
 	testImplementation 'org.springframework.security:spring-security-test'
-
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Task 및 설정 추가
+// GenerateSwaggerUI 태스크가 openapi3 task를 의존하도록 설정
+tasks.withType(GenerateSwaggerUI) {
+	dependsOn 'openapi3'
+
+	// (로컬 확인용)
+	delete file('src/main/resources/static/docs/')
+	copy {
+		from "build/resources/main/static/docs"
+		into "src/main/resources/static/docs/"
+	}
+}
+
+// openAPI 작성 자동화를 위해 패키징 전에 openapi3 테스크 선 실행을 유발
+bootJar {
+	dependsOn(':openapi3')
 }
